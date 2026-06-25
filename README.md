@@ -127,6 +127,12 @@ config/config.json
 Dockerfile  docker-compose.yml  CMakeLists.txt  vcpkg.json
 ```
 
+## Documentation
+
+- [API reference](docs/API.md) — every endpoint, parameter, and error code
+- [Features](docs/FEATURES.md) — capability + supported-format matrix
+- [Roadmap](docs/ROADMAP.md) — planned milestones (v0.2 → v1.0)
+
 ## License
 
 [MIT](LICENSE) © 2026 IoT Viet Solution.
