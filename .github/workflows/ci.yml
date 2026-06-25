@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    name: Build (Docker)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Building inside the Drogon base image validates the full toolchain
+      # (Drogon + libvips) exactly as the production image does.
+      - name: Build image
+        run: docker build -t imageprocessingserver:ci .
+
+      - name: Install libvips CLI (for test image generation)
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libvips-tools
+
+      - name: Smoke test
+        run: |
+          docker run -d --name ips -p 8080:8080 imageprocessingserver:ci
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:8080/healthz; then ok=1; break; fi
+            sleep 1
+          done
+          test "${ok:-0}" = "1" || { docker logs ips; exit 1; }
+          bash scripts/smoke-test.sh http://localhost:8080
+          docker rm -f ips

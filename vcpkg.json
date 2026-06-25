@@ -1,0 +1,11 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg/master/scripts/vcpkg.schema.json",
+  "name": "image-processing-server",
+  "version": "0.1.0",
+  "description": "High-performance stateless C++ image processing REST server",
+  "homepage": "https://github.com/Iot-Viet-Solution/ImageProcessingServer",
+  "license": "MIT",
+  "dependencies": [
+    "drogon"
+  ]
+}

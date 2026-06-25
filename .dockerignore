@@ -1,0 +1,9 @@
+build/
+out/
+vcpkg_installed/
+.git/
+.github/
+.idea/
+.vscode/
+*.log
+README.md

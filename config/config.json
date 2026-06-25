@@ -1,0 +1,25 @@
+{
+  "listeners": [
+    { "address": "0.0.0.0", "port": 8080, "https": false }
+  ],
+  "app": {
+    "//comment": "number_of_threads = Drogon I/O event-loop threads. CPU-bound image work runs on the separate worker pool below.",
+    "number_of_threads": 4,
+    "enable_session": false,
+    "document_root": "",
+    "max_connections": 100000,
+    "client_max_body_size": "67108864",
+    "client_max_memory_body_size": "67108864",
+    "log": {
+      "log_level": "INFO",
+      "use_spdlog": false
+    }
+  },
+  "custom_config": {
+    "//comment": "Image worker pool. workers=0 means auto (hardware concurrency).",
+    "workers": 0,
+    "max_queue": 256,
+    "vips_concurrency": 1,
+    "max_image_pixels": 100000000
+  }
+}

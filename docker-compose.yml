@@ -1,0 +1,20 @@
+services:
+  image-server:
+    build: .
+    image: ghcr.io/iot-viet-solution/imageprocessingserver:latest
+    container_name: image-processing-server
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    # Stateless service — no volumes, no persistence.
+    deploy:
+      resources:
+        limits:
+          cpus: "4.0"
+          memory: 1g
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
