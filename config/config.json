@@ -7,6 +7,8 @@
     "number_of_threads": 4,
     "enable_session": false,
     "document_root": "",
+    "//upload_path": "Writable temp dir for multipart parsing. Uploads under client_max_memory_body_size stay in RAM and are never written here; nothing is persisted.",
+    "upload_path": "/tmp/ips-uploads",
     "max_connections": 100000,
     "client_max_body_size": "67108864",
     "client_max_memory_body_size": "67108864",

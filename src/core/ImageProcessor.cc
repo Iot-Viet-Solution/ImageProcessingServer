@@ -56,11 +56,6 @@ Encoding detectEncoding(const std::string& input) {
   return {".png", "image/png", false};
 }
 
-int interestingForFit(Fit fit) {
-  // Only Cover crops; others fit without cropping.
-  return fit == Fit::Cover ? VIPS_INTERESTING_CENTRE : VIPS_INTERESTING_NONE;
-}
-
 VImage loadResized(const std::string& input, const ProcessOptions& o) {
   // libvips thumbnail does shrink-on-load — far cheaper than decode-then-resize.
   // It targets a bounding box; we widen the unconstrained axis so a single
@@ -68,17 +63,21 @@ VImage loadResized(const std::string& input, const ProcessOptions& o) {
   const int kUnbounded = 1000000;
   int targetW = o.width.value_or(kUnbounded);
   int targetH = o.height.value_or(kUnbounded);
+  int cropMode =
+      (o.fit == Fit::Cover) ? VIPS_INTERESTING_CENTRE : VIPS_INTERESTING_NONE;
 
-  VOption* opt = VImage::option()
-                     ->set("height", targetH)
-                     ->set("size", VIPS_SIZE_BOTH);
-
-  if (o.fit == Fit::Cover) {
-    opt->set("crop", interestingForFit(o.fit));
+  // Use the libvips C API for thumbnailing: its signature has been stable since
+  // 8.6, whereas the C++ VImage::thumbnail_buffer binding changed between 8.12
+  // and 8.16. This still performs shrink-on-load.
+  VipsImage* out = nullptr;
+  if (vips_thumbnail_buffer(
+          const_cast<void*>(static_cast<const void*>(input.data())),
+          input.size(), &out, targetW, "height", targetH, "size",
+          VIPS_SIZE_BOTH, "crop", cropMode, static_cast<void*>(nullptr))) {
+    const char* err = vips_error_buffer();
+    throw ImageError(std::string("resize failed: ") + (err ? err : "unknown"));
   }
-
-  VImage img = VImage::thumbnail_buffer(
-      const_cast<char*>(input.data()), input.size(), targetW, opt);
+  VImage img(out);  // VImage steals the reference and unrefs on destruction.
 
   // Fit::Fill ignores aspect ratio: stretch to the exact requested box.
   if (o.fit == Fit::Fill && o.width && o.height) {
@@ -138,9 +137,13 @@ ProcessedImage ImageProcessor::process(const std::string& input,
     if (wantResize && !o.crop.has_value()) {
       img = loadResized(input, o);
     } else {
+      // Random access (the default): operations such as 90/270 rotation and
+      // arbitrary-angle rotation read pixels out of row order, which is
+      // incompatible with VIPS_ACCESS_SEQUENTIAL streaming. The source is
+      // already a fully in-memory buffer, so there is no streaming benefit to
+      // give up here.
       img = VImage::new_from_buffer(
-          input.data(), static_cast<size_t>(input.size()), "",
-          VImage::option()->set("access", VIPS_ACCESS_SEQUENTIAL));
+          input.data(), static_cast<size_t>(input.size()), "");
 
       if (o.crop) {
         const CropRect& c = *o.crop;

@@ -10,15 +10,18 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /src
+# Only what's needed to compile — config is copied into the runtime stage, so
+# editing config does not invalidate the (expensive) compile cache layer.
 COPY CMakeLists.txt ./
 COPY src/ ./src/
-COPY config/ ./config/
 
 RUN cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
     && cmake --build build --target image_server -j "$(nproc)"
 
 # ---- Runtime stage -------------------------------------------------------
-FROM ubuntu:24.04 AS runtime
+# Match the build stage's distro (the Drogon base image is Ubuntu 22.04 / jammy)
+# so the libvips and system-library ABIs line up with the compiled binary.
+FROM ubuntu:22.04 AS runtime
 
 # Runtime shared libraries: libvips + the system deps Drogon links against.
 RUN apt-get update \
@@ -32,6 +35,11 @@ RUN apt-get update \
         libbrotli1 \
         ca-certificates \
         curl \
+        # Drogon in the base image is built with DB client support, so the
+        # binary links these even though this service uses no database.
+        libpq5 \
+        libmariadb3 \
+        libhiredis0.14 \
     && rm -rf /var/lib/apt/lists/*
 
 # Run as an unprivileged user.
@@ -39,7 +47,9 @@ RUN useradd --system --uid 10001 --no-create-home appuser
 
 WORKDIR /app
 COPY --from=build /src/build/image_server /app/image_server
-COPY --from=build /src/config /app/config
+# Config comes from the build context (not the build stage), so editing it
+# rebuilds only this cheap layer rather than recompiling.
+COPY config/ /app/config
 
 USER appuser
 EXPOSE 8080
