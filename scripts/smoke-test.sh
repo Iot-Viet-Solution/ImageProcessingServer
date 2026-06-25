@@ -34,4 +34,14 @@ curl -fsS -X POST --data-binary "@$SRC" \
   "$BASE/v1/process?w=100&h=100&fit=cover" -o "$OUT/thumb.jpg"
 file "$OUT/thumb.jpg"
 
+echo "== AVIF encode (-> avif) =="
+curl -fsS -X POST --data-binary "@$SRC" \
+  "$BASE/v1/process?w=200&format=avif&q=50" -o "$OUT/out.avif"
+file "$OUT/out.avif"
+
+echo "== AVIF decode (avif -> png) =="
+curl -fsS -X POST --data-binary "@$OUT/out.avif" \
+  "$BASE/v1/process?w=100&format=png" -o "$OUT/from_avif.png"
+file "$OUT/from_avif.png"
+
 echo "All smoke tests passed."

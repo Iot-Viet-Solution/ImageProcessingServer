@@ -38,9 +38,12 @@ were compiled in). The table reflects a standard `libvips-dev` install.
 | TIFF   |       ✅       |       ✅        |     —       | `tiff` (or `tif`)      |
 | HEIC/HEIF |    ✅¹      |       —²        |     —       | (decode only; re-encode as another format) |
 
-¹ Requires libvips built with `libheif` (AVIF/HEIF). Some distro packages omit
-it — check `GET /v1/version` and your libvips build options.
-² HEIC input is decoded; choose `avif`/`jpeg`/`webp` for output.
+¹ AVIF/HEIF support comes from libvips' `libheif` backend. **The provided
+Docker image includes it** — AVIF encode and decode are verified working out of
+the box (`libheif` is a hard dependency of the `libvips42` package). On a custom
+build, confirm your libvips links `libheif`.
+² HEIC *input* is decoded; HEIC *output* needs an HEVC encoder and is not
+enabled — choose `avif`/`jpeg`/`webp` for output.
 
 > When `format` is omitted, the server detects the source format and re-encodes
 > in the same one (PNG fallback for anything otherwise unhandled).
