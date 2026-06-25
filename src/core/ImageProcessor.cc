@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <chrono>
 #include <string>
 
 namespace ips {
@@ -105,6 +106,21 @@ VImage applyRotate(VImage img, int degrees) {
   }
 }
 
+// Watchdog state shared with the libvips "eval" progress callback. When the
+// deadline passes, the callback flags the image to abort its computation.
+struct EvalGuard {
+  std::chrono::steady_clock::time_point deadline;
+  bool killed = false;
+};
+
+extern "C" void onVipsEval(VipsImage* image, void* /*progress*/, void* user) {
+  auto* g = static_cast<EvalGuard*>(user);
+  if (!g->killed && std::chrono::steady_clock::now() >= g->deadline) {
+    g->killed = true;
+    vips_image_set_kill(image, TRUE);
+  }
+}
+
 void guardPixels(const VImage& img) {
   long long cap = g_maxPixels.load();
   if (cap <= 0) return;
@@ -121,12 +137,19 @@ void ImageProcessor::configure(long long maxPixels) {
   g_maxPixels.store(maxPixels);
 }
 
-ProcessedImage ImageProcessor::process(const std::string& input,
-                                       const ProcessOptions& o) {
+ProcessedImage ImageProcessor::process(
+    const std::string& input, const ProcessOptions& o,
+    std::chrono::steady_clock::time_point deadline) {
   if (input.empty()) {
     throw ImageError("empty request body: expected raw image bytes");
   }
+  const bool useDeadline =
+      deadline != std::chrono::steady_clock::time_point::max();
+  if (useDeadline && std::chrono::steady_clock::now() >= deadline) {
+    throw ImageTimeout();  // already stale before work began
+  }
 
+  EvalGuard guard{deadline, false};
   try {
     Encoding enc = o.format.empty() ? detectEncoding(input)
                                     : encodingForFormat(o.format);
@@ -183,6 +206,14 @@ ProcessedImage ImageProcessor::process(const std::string& input,
     if (o.grayscale) img = img.colourspace(VIPS_INTERPRETATION_B_W);
     if (o.blur && *o.blur > 0) img = img.gaussblur(*o.blur);
 
+    // Arm the timeout watchdog: libvips fires "eval" periodically while the
+    // pipeline computes (during write_to_buffer below); the callback aborts the
+    // operation once the deadline passes.
+    if (useDeadline) {
+      vips_image_set_progress(img.get_image(), TRUE);
+      g_signal_connect(img.get_image(), "eval", G_CALLBACK(onVipsEval), &guard);
+    }
+
     // Encode to the chosen format.
     VOption* wopt = VImage::option();
     if (enc.lossy && o.quality) wopt->set("Q", *o.quality);
@@ -199,6 +230,7 @@ ProcessedImage ImageProcessor::process(const std::string& input,
   } catch (const ImageError&) {
     throw;
   } catch (const VError& e) {
+    if (guard.killed) throw ImageTimeout();  // aborted by the watchdog
     throw ImageError(std::string("image processing failed: ") + e.what());
   }
 }

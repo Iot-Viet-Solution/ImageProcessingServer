@@ -66,6 +66,7 @@ curl -X POST -F "image=@photo.jpg" \
 | `GET /healthz` | Liveness — always `200` while the process is up          |
 | `GET /readyz`  | Readiness — `503` when the queue is saturated; reports pool stats |
 | `GET /v1/version` | Build + libvips version                               |
+| `GET /metrics`    | Prometheus metrics (when enabled)                     |
 
 ## Configuration
 
@@ -77,9 +78,17 @@ curl -X POST -F "image=@photo.jpg" \
 | `max_queue`        | `256`   | Max queued jobs before shedding load (`503`)          |
 | `vips_concurrency` | `1`     | libvips threads **per operation** (keep low)          |
 | `max_image_pixels` | `1e8`   | Decoded-pixel cap (decompression-bomb guard; `0` off) |
+| `security.api_keys` | `[]`   | API keys for `/v1/process`; empty = auth disabled     |
+| `security.api_key_header` | `X-API-Key` | Header carrying the API key                  |
+| `rate_limit.enabled` | `false` | Per-client token-bucket rate limiting              |
+| `rate_limit.requests_per_sec` / `.burst` | `10` / `20` | Sustained rate / burst capacity |
+| `cors.allow_origins` | `["*"]` | Allowed CORS origins (`["*"]` = any)               |
+| `processing.job_timeout_ms` | `30000` | Per-request deadline (queue + compute); `0` off |
+| `observability.metrics` | `true` | Serve `/metrics`                                  |
+| `observability.access_log` | `true` | Per-request structured access logging          |
 
 I/O threads, port, and max upload size live in the standard `app` / `listeners`
-sections.
+sections. See [docs/API.md](docs/API.md) for auth, rate-limit, and metrics details.
 
 ## Build from source
 

@@ -2,6 +2,7 @@
 
 #include <vips/vips8>
 
+#include "core/Config.h"
 #include "core/JobQueue.h"
 #include "version.h"
 
@@ -22,15 +23,18 @@ void HealthController::readyz(
     std::function<void(const HttpResponsePtr&)>&& callback) {
   auto& q = JobQueue::instance();
   std::size_t pending = q.pending();
+  const bool draining = Config::draining();
+  const bool saturated = pending >= q.maxQueue();
 
   Json::Value body;
-  body["status"] = pending >= q.maxQueue() ? "saturated" : "ready";
+  body["status"] = draining ? "draining" : (saturated ? "saturated" : "ready");
   body["workers"] = static_cast<Json::UInt64>(q.workerCount());
   body["queue_pending"] = static_cast<Json::UInt64>(pending);
+  body["queue_inflight"] = static_cast<Json::UInt64>(q.inFlight());
   body["queue_capacity"] = static_cast<Json::UInt64>(q.maxQueue());
 
   auto resp = HttpResponse::newHttpJsonResponse(body);
-  if (pending >= q.maxQueue()) resp->setStatusCode(k503ServiceUnavailable);
+  if (draining || saturated) resp->setStatusCode(k503ServiceUnavailable);
   callback(resp);
 }
 

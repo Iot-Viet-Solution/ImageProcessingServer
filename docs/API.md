@@ -55,9 +55,34 @@ crop → resize (w/h/fit) → rotate → flip → grayscale → blur → encode 
 |---------|--------|---------------------------------------|------------------------------------------|
 | Success | `200`  | Encoded image bytes                   | `Content-Type: image/<fmt>`, `Cache-Control: no-store` |
 | Bad params / no image | `400` | `{"error": "..."}`        | `application/json`                        |
+| Missing/invalid API key | `401` | `{"error": "..."}`      | `WWW-Authenticate: Bearer`                |
 | Undecodable / invalid op | `422` | `{"error": "..."}`     | `application/json`                        |
-| Queue full (backpressure) | `503` | `{"error": "server busy..."}` | `Retry-After: 1`                    |
+| Rate limit exceeded | `429` | `{"error": "..."}`          | `Retry-After: 1`                          |
+| Queue full / shutting down | `503` | `{"error": "..."}`   | `Retry-After`                             |
+| Processing deadline exceeded | `504` | `{"error": "..."}` | `application/json`                        |
 | Internal error | `500` | `{"error": "..."}`             | `application/json`                        |
+
+### Authentication
+
+If `security.api_keys` is configured, `POST /v1/process` requires a key via
+either header — otherwise auth is disabled (open):
+
+```bash
+curl -X POST --data-binary @photo.jpg \
+  -H "X-API-Key: your-key" \
+  "http://localhost:8080/v1/process?w=300"
+# or:  -H "Authorization: Bearer your-key"
+```
+
+Preflight `OPTIONS` and the operational endpoints (`/healthz`, `/readyz`,
+`/metrics`, `/v1/version`) never require a key.
+
+### Rate limiting
+
+When `rate_limit.enabled` is true, a per-client token bucket
+(`requests_per_sec` sustained, `burst` capacity) applies, keyed by API key when
+present, else client IP (honouring `X-Forwarded-For`). Over-limit requests get
+`429` with `Retry-After`.
 
 ### Examples
 
@@ -123,6 +148,27 @@ saturated (the server is shedding load), `200` otherwise.
   "queue_pending": 0,         // jobs queued, not yet started
   "queue_capacity": 256       // max_queue before 503s begin
 }
+```
+
+---
+
+## `GET /metrics`
+
+Prometheus text exposition (`text/plain; version=0.0.4`). Returns `404` when
+`observability.metrics` is `false`. Exposed series:
+
+| Metric | Type | Notes |
+|--------|------|-------|
+| `ips_build_info{version}` | gauge | Always 1; carries the build version label |
+| `ips_http_requests_total{status}` | counter | Requests by HTTP status code |
+| `ips_http_request_duration_seconds` | histogram | Total request latency |
+| `ips_process_total{result}` | counter | `ok` / `error` / `rejected` / `timeout` |
+| `ips_output_bytes_total` | counter | Encoded output bytes served |
+| `ips_queue_pending` / `ips_queue_inflight` | gauge | Live worker-pool depth |
+| `ips_queue_capacity` / `ips_workers` | gauge | Pool configuration |
+
+```bash
+curl http://localhost:8080/metrics
 ```
 
 ---

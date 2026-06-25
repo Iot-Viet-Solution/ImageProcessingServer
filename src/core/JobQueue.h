@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <condition_variable>
 #include <cstddef>
 #include <functional>
@@ -33,6 +34,9 @@ class JobQueue {
   // Pending tasks not yet picked up by a worker.
   std::size_t pending();
 
+  // Tasks currently being executed by a worker.
+  std::size_t inFlight() const { return inFlight_.load(); }
+
   void stop();
   ~JobQueue();
 
@@ -49,6 +53,7 @@ class JobQueue {
   std::condition_variable cv_;
   std::size_t maxQueue_;
   bool stopping_ = false;
+  std::atomic<std::size_t> inFlight_{0};
 };
 
 }  // namespace ips

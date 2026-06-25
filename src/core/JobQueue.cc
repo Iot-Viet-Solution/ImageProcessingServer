@@ -55,7 +55,9 @@ void JobQueue::workerLoop() {
       task = std::move(tasks_.front());
       tasks_.pop();
     }
+    ++inFlight_;
     task();  // exceptions are handled inside the task itself
+    --inFlight_;
   }
 }
 

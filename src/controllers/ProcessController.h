@@ -24,7 +24,7 @@ class ProcessController : public drogon::HttpController<ProcessController> {
  public:
   METHOD_LIST_BEGIN
   ADD_METHOD_TO(ProcessController::process, "/v1/process", drogon::Post,
-                drogon::Options);
+                drogon::Options, "ips::ApiKeyFilter", "ips::RateLimitFilter");
   METHOD_LIST_END
 
   void process(const drogon::HttpRequestPtr& req,

@@ -18,9 +18,15 @@ guarantees and a forward-looking roadmap.
 | Quality control     |   ✅   | `q=1..100` for lossy encoders.                               |
 | Backpressure queue  |   ✅   | Bounded worker pool; `503 Retry-After` when saturated.       |
 | Decompression-bomb guard | ✅ | Configurable decoded-pixel cap.                            |
+| Per-request timeout |   ✅   | Deadline (queue + compute) aborts long jobs → `504`.         |
+| API-key auth        |   ✅   | `X-API-Key` / `Bearer`; off when no keys configured.         |
+| Rate limiting       |   ✅   | Per-client token bucket (by key or IP) → `429`.              |
+| Prometheus metrics  |   ✅   | `/metrics`: requests, latency, results, queue gauges.        |
+| Access logging      |   ✅   | Structured per-request line; toggleable.                     |
+| Configurable CORS   |   ✅   | Origin allowlist (`["*"]` = any).                            |
+| Graceful shutdown   |   ✅   | SIGTERM drains in-flight jobs before exit; `/readyz` flips.  |
 | Health / readiness  |   ✅   | `/healthz`, `/readyz` (with pool telemetry).                 |
 | Docker / Compose    |   ✅   | Multi-stage build, non-root runtime, healthcheck.            |
-| CORS                |   ✅   | Permissive by default; tunable.                              |
 | Stateless / no storage | ✅  | In-memory only; `Cache-Control: no-store`.                   |
 
 ## Supported image formats
@@ -81,18 +87,22 @@ See [API.md](API.md) for full parameter semantics and the fixed pipeline order.
   outputs. Put a CDN or cache in front if you need caching.
 - **No async job/poll API.** Processing is synchronous request→response. (An
   async mode could be added — see roadmap.)
-- **No authentication built in.** Front it with a gateway/reverse proxy, or add
-  an auth filter (see roadmap).
+- **Optional built-in auth.** API-key auth ships in v0.2 (off by default); for
+  richer identity, front it with a gateway/reverse proxy.
 
-## Roadmap ideas
+## Roadmap
 
-These are not implemented yet — candidates for future work:
+Shipped in **v0.2** (see [ROADMAP.md](ROADMAP.md) for the full plan):
 
-- [ ] API-key / bearer-token auth filter
-- [ ] Per-client rate limiting
-- [ ] Prometheus `/metrics` endpoint (latency, queue depth, per-format counts)
-- [ ] Watermark / text overlay / composite operations
+- [x] API-key / bearer-token auth filter
+- [x] Per-client rate limiting
+- [x] Prometheus `/metrics` endpoint
+- [x] Structured access logging, per-request timeout, graceful shutdown, CORS
+
+Candidates for future milestones:
+
 - [ ] Sharpen, brightness/contrast/gamma, colour-tint adjustments
+- [ ] Watermark / text overlay / composite operations
 - [ ] Smart crop (attention/entropy-based) for `cover`
 - [ ] Signed URL / HMAC request validation (imgproxy-style)
 - [ ] Optional async job submission + polling for very large batch jobs

@@ -22,6 +22,34 @@
     "workers": 0,
     "max_queue": 256,
     "vips_concurrency": 1,
-    "max_image_pixels": 100000000
+    "max_image_pixels": 100000000,
+
+    "security": {
+      "//comment": "api_keys empty => auth disabled. When set, /v1/process requires X-API-Key (or Authorization: Bearer <key>).",
+      "api_keys": [],
+      "api_key_header": "X-API-Key"
+    },
+
+    "rate_limit": {
+      "//comment": "Per-client token bucket (keyed by API key, else IP). enabled=false => no limiting.",
+      "enabled": false,
+      "requests_per_sec": 10,
+      "burst": 20
+    },
+
+    "cors": {
+      "//comment": "Allowed CORS origins. [\"*\"] allows any origin.",
+      "allow_origins": ["*"]
+    },
+
+    "processing": {
+      "//comment": "Per-request processing deadline (queue wait + compute), ms. 0 => disabled.",
+      "job_timeout_ms": 30000
+    },
+
+    "observability": {
+      "metrics": true,
+      "access_log": true
+    }
   }
 }

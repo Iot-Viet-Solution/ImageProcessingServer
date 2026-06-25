@@ -19,7 +19,7 @@ Legend: `[ ]` planned · `[~]` in progress · `[x]` shipped
 
 ## v0.1 — Shipped ✅
 
-The current release. Verified end-to-end in Docker.
+The image-processing core. Verified end-to-end in Docker.
 
 - [x] `POST /v1/process` — resize, fit modes (`inside`/`outside`/`cover`/`fill`),
       crop, rotate (90/180/270 + arbitrary), flip, grayscale, blur
@@ -32,24 +32,23 @@ The current release. Verified end-to-end in Docker.
 
 ---
 
-## v0.2 — Hardening & observability
+## v0.2 — Hardening & observability ✅ Shipped
 
-Make it safe and operable to expose. Highest priority.
+Make it safe and operable to expose.
 
-- [ ] **API-key / bearer-token auth** — a Drogon `HttpFilter` gating `/v1/*`,
-      keys from config/env. Off by default for local dev.
-- [ ] **Per-client rate limiting** — Drogon ships a `RateLimiter`; wire it per
-      API key / IP with limits in `custom_config`.
-- [ ] **Prometheus `/metrics`** — request count, latency histogram, queue depth,
-      per-format/op counters, reject (`503`) count. Feeds dashboards + alerts.
-- [ ] **Structured request logging** — method, path, op summary, status, bytes
-      in/out, duration. No pixel data. (Toggle in config.)
-- [ ] **Per-request timeout** — cap worst-case processing time per job so a
-      pathological image can't pin a worker indefinitely.
-- [ ] **Graceful-shutdown drain** — on SIGTERM, stop accepting, let in-flight
-      jobs finish within a deadline (extends current `JobQueue::stop()`).
-- [ ] **Configurable CORS** — replace the permissive `*` in `ProcessController`
-      with an allowlist from config.
+- [x] **API-key / bearer-token auth** — `ApiKeyFilter` gating `/v1/process`,
+      keys from config. Off by default; `X-API-Key` or `Authorization: Bearer`.
+- [x] **Per-client rate limiting** — token bucket keyed by API key / IP, limits
+      in `custom_config`. Over-limit → `429 Retry-After`.
+- [x] **Prometheus `/metrics`** — request count, latency histogram, process
+      results (ok/error/rejected/timeout), output bytes, live queue gauges.
+- [x] **Structured request logging** — method, path, status, bytes, duration,
+      client IP. No pixel data. Toggle via `observability.access_log`.
+- [x] **Per-request timeout** — deadline (queue wait + compute) aborts long jobs
+      via the libvips kill watchdog → `504`.
+- [x] **Graceful-shutdown drain** — SIGTERM/SIGINT flips `/readyz` to `503`,
+      drains in-flight jobs, then stops the loop so responses still deliver.
+- [x] **Configurable CORS** — origin allowlist from config, applied globally.
 
 ## v0.3 — Richer image operations
 

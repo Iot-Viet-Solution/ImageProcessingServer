@@ -44,4 +44,7 @@ curl -fsS -X POST --data-binary "@$OUT/out.avif" \
   "$BASE/v1/process?w=100&format=png" -o "$OUT/from_avif.png"
 file "$OUT/from_avif.png"
 
+echo "== metrics endpoint =="
+curl -fsS "$BASE/metrics" | grep -q "ips_build_info" && echo "metrics OK"
+
 echo "All smoke tests passed."
